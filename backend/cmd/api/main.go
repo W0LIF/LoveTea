@@ -20,6 +20,7 @@ import (
 	redisClient "github.com/W0LIF/LoveTea/backend/internal/platform/redis"
 	"github.com/W0LIF/LoveTea/backend/internal/platform/security"
 	"github.com/W0LIF/LoveTea/backend/internal/platform/storage"
+	reminders "github.com/W0LIF/LoveTea/backend/internal/modules/reminders"
 )
 
 func main() {
@@ -70,26 +71,6 @@ func run() error {
 
 	logger.Info("Redis connected")
 
-	objectStore, err := storage.NewClient(cfg)
-	if err != nil {
-		return fmt.Errorf("configure object storage: %w", err)
-	}
-	bucketCtx, cancelBucket := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancelBucket()
-	for {
-		if err := objectStore.EnsureBucket(bucketCtx); err == nil {
-			break
-		} else if bucketCtx.Err() != nil {
-			return fmt.Errorf("initialize object storage bucket: %w", err)
-		}
-		select {
-		case <-bucketCtx.Done():
-			return fmt.Errorf("initialize object storage bucket: %w", bucketCtx.Err())
-		case <-time.After(time.Second):
-		}
-	}
-	logger.Info("Object storage connected")
-
 	tokenManager := security.NewTokenManager(cfg.JWTSecret)
 
 	application, err := app.New(
@@ -109,6 +90,40 @@ func run() error {
 		syscall.SIGTERM,
 	)
 	defer stop()
+
+	workerMode := os.Getenv("WORKER_MODE")
+
+	if workerMode == "reminders" {
+		logger.Info("Starting reminders worker mode")
+		worker := reminders.NewWorker(
+			reminders.NewRepository(db),
+			logger,
+			60*time.Second,
+			nil,
+		)
+		worker.Run(stopCtx)
+		return nil
+	}
+
+	objectStore, err := storage.NewClient(cfg)
+	if err != nil {
+		return fmt.Errorf("configure object storage: %w", err)
+	}
+	bucketCtx, cancelBucket := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelBucket()
+	for {
+		if err := objectStore.EnsureBucket(bucketCtx); err == nil {
+			break
+		} else if bucketCtx.Err() != nil {
+			return fmt.Errorf("initialize object storage bucket: %w", err)
+		}
+		select {
+		case <-bucketCtx.Done():
+			return fmt.Errorf("initialize object storage bucket: %w", bucketCtx.Err())
+		case <-time.After(time.Second):
+		}
+	}
+	logger.Info("Object storage connected")
 
 	go application.Outbox.Run(stopCtx)
 

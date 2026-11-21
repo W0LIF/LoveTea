@@ -1,0 +1,175 @@
+services:
+  - type: web
+    name: lovetea-api
+    env: docker
+    plan: standard
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: HTTP_PORT
+        value: "8080"
+      - key: POSTGRES_HOST
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: host
+      - key: POSTGRES_PORT
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: port
+      - key: POSTGRES_DB
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: password
+      - key: POSTGRES_SSLMODE
+        value: "require"
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_PUBLIC_ENDPOINT
+        sync: false
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        value: "lovetea-media"
+      - key: MINIO_USE_TLS
+        value: "true"
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        value: "noreply@lovetea.local"
+      - key: MAIL_USE_TLS
+        value: "true"
+    healthCheckPath: /health/live
+    autoDeploy: true
+
+  - type: worker
+    name: lovetea-worker
+    env: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: HTTP_PORT
+        value: "8080"
+      - key: POSTGRES_HOST
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: host
+      - key: POSTGRES_PORT
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: port
+      - key: POSTGRES_DB
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromService:
+          type: postgres
+          name: lovetea-postgres
+          property: password
+      - key: POSTGRES_SSLMODE
+        value: "require"
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromService:
+          type: redis
+          name: lovetea-redis
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_PUBLIC_ENDPOINT
+        sync: false
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
+      - key: MINIO_BUCKET
+        value: "lovetea-media"
+      - key: MINIO_USE_TLS
+        value: "true"
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        value: "noreply@lovetea.local"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: WORKER_MODE
+        value: "reminders"
+
+databases:
+  - name: lovetea-postgres
+    plan: starter
+    region: oregon
+    databaseName: lovetea
+    user: lovetea
+    ipAllowList: []
+
+  - name: lovetea-redis
+    plan: starter
+    region: oregon
+    ipAllowList: []
