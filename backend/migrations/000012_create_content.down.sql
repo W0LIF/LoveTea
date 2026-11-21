@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS moment_media;
+DROP TABLE IF EXISTS memories;
+DROP TABLE IF EXISTS moments;
+DROP TABLE IF EXISTS media_files;

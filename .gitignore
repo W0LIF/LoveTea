@@ -36,6 +36,10 @@ desktop.ini
 # Logs
 *.log
 
+# Backups
+infra/backups/
+*.gz
+
 # Temporary files
 *.tmp
 *.bak

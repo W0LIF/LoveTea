@@ -1,0 +1,2847 @@
+openapi: 3.1.0
+info:
+  title: LoVeTea API
+  version: 1.0.0
+  description: Версионированный REST API аккаунтов, профилей и пар.
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /auth/register:
+    post:
+      operationId: register
+      summary: Создать аккаунт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "201":
+          description: Аккаунт создан и пользователь вошёл.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /auth/login:
+    post:
+      operationId: login
+      summary: Войти
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "200":
+          description: Успешный вход.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /auth/refresh:
+    post:
+      operationId: refreshTokens
+      summary: Обновить пару токенов с ротацией refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Токены обновлены.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Отозвать refresh token текущего пользователя
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Сессия завершена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Получить аккаунт текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Аккаунт.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /users/me:
+    get:
+      operationId: getCurrentProfile
+      summary: Получить профиль текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Профиль.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateCurrentProfile
+      summary: Обновить поля профиля
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfile"
+      responses:
+        "200":
+          description: Обновлённый профиль.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /couples:
+    post:
+      operationId: createCouple
+      summary: Создать ожидающую пару
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Пара создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCoupleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /onboarding/tests:
+    get:
+      operationId: listOnboardingTests
+      summary: Получить опубликованные тесты onboarding
+      description: Возвращает последнюю опубликованную версию каждого теста. Ответы партнёра недоступны через этот API.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Опубликованный каталог. Пока тесты не опубликованы, возвращается пустой массив.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnboardingTest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /home:
+    get:
+      operationId: getHomeSnapshot
+      summary: Получить снимок главной страницы пользователя
+      description: Возвращает профиль пользователя, его текущую пару и пассивное состояние питомца пары. Для пользователя без пары couple и pet будут null.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Персональный снимок главной страницы.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /calendar/events:
+    get:
+      operationId: listCalendarEvents
+      summary: Получить личные события и события активной пары
+      description: Пагинация через limit/offset; элементы остаются отсортированы по времени начала.
+      parameters:
+        - $ref: "#/components/parameters/PlanningLimit"
+        - $ref: "#/components/parameters/PlanningOffset"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: События в пределах доступа пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createCalendarEvent
+      summary: Создать личное или общее событие
+      description: Для scope couple требуется активная пара. Создание события атомарно добавляет запись в sync feed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCalendarEvent"
+      responses:
+        "201":
+          description: Событие создано.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /calendar/events/{eventID}:
+    parameters:
+      - name: eventID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateCalendarEvent
+      summary: Полностью обновить событие по ожидаемой версии
+      description: Все изменяемые поля передаются целиком. color можно очистить значением null; при конфликте версий возвращается 409.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCalendarEvent"
+      responses:
+        "200":
+          description: Событие обновлено.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      operationId: deleteCalendarEvent
+      summary: Удалить событие по ожидаемой версии
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Событие удалено; tombstone отправлен в sync feed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /calendar/dates:
+    get:
+      operationId: listImportantDates
+      summary: Получить личные и общие важные даты
+      description: Пагинация через limit/offset; элементы остаются отсортированы по дате.
+      parameters:
+        - $ref: "#/components/parameters/PlanningLimit"
+        - $ref: "#/components/parameters/PlanningOffset"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Важные даты в пределах доступа пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImportantDate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createImportantDate
+      summary: Создать личную или общую важную дату
+      description: Дата задаётся календарной датой без времени. Напоминания хранятся как число дней до даты; отправка уведомлений пока не выполняется.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateImportantDate"
+      responses:
+        "201":
+          description: Важная дата создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportantDate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /calendar/dates/{dateID}:
+    parameters:
+      - name: dateID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateImportantDate
+      summary: Полностью обновить важную дату по ожидаемой версии
+      description: При конфликте версий возвращается 409.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateImportantDate"
+      responses:
+        "200":
+          description: Важная дата обновлена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportantDate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      operationId: deleteImportantDate
+      summary: Удалить важную дату по ожидаемой версии
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Важная дата удалена; tombstone отправлен в sync feed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /wellness/mood:
+    get:
+      operationId: listMoodEntries
+      summary: Получить собственные и явно опубликованные отметки настроения
+      description: Собственные заметки доступны только автору. Для партнёра видны лишь записи, которым автор явно разрешил показ, без заметки.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Отметки настроения за диапазон до 366 дней.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MoodEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: saveMoodEntry
+      summary: Создать или обновить собственную дневную отметку настроения
+      description: Запись приватна по умолчанию. shared_with_couple=true отдельно разрешает партнёру видеть настроение, но заметка всегда остаётся приватной. Для обновления обязателен version из текущей записи.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveMoodEntry"
+      responses:
+        "200":
+          description: Запись создана или обновлена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /wellness/sleep:
+    get:
+      operationId: listSleepEntries
+      summary: Получить собственные и явно опубликованные записи сна
+      description: Записи сна приватны по умолчанию. Партнёру доступны только записи с явным разрешением на показ.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Записи сна за диапазон до 366 дней.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SleepEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: saveSleepEntry
+      summary: Создать или обновить собственную дневную запись сна
+      description: Запись приватна по умолчанию; для обновления обязателен version текущей записи.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveSleepEntry"
+      responses:
+        "200":
+          description: Запись создана или обновлена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /habits:
+    get:
+      operationId: listHabits
+      summary: Получить личные привычки и привычки активной пары
+      description: Личные привычки видны только владельцу; общие — только текущим участникам активной пары.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Доступные привычки.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Habit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createHabit
+      summary: Создать личную или совместную привычку
+      description: Общая привычка требует активной пары. Цель задаётся числом выполнений в неделю от 1 до 7.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHabit"
+      responses:
+        "201":
+          description: Привычка создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /habits/{habitID}:
+    parameters:
+      - name: habitID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateHabit
+      summary: Полностью обновить привычку с optimistic locking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateHabit"
+      responses:
+        "200":
+          description: Привычка обновлена.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      operationId: deleteHabit
+      summary: Удалить привычку по ожидаемой версии
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Привычка удалена; tombstone отправлен в sync feed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /habits/{habitID}/completions:
+    get:
+      operationId: listHabitCompletions
+      summary: Получить личные отметки участника и отметки активной пары
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Отметки привычки за диапазон до 366 дней.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HabitCompletion"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: completeHabit
+      summary: Отметить выполнение привычки за календарную дату
+      description: Повторный запрос с той же датой идемпотентен. Каждый участник отмечает собственное выполнение отдельно.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteHabit"
+      responses:
+        "200":
+          description: Отметка создана или уже существовала.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitCompletion"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      operationId: uncompleteHabit
+      summary: Удалить собственную отметку выполнения за дату
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: completed_on
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "204":
+          description: Отметка удалена; повторное удаление не меняет состояние.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /habits/{habitID}/stats:
+    get:
+      operationId: getHabitStats
+      summary: Получить число выполнений и недельные серии
+      description: Успешная неделя — не менее target_per_week отметок с понедельника по воскресенье (UTC). Текущая незавершённая неделя не прерывает предыдущую серию.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Статистика привычки и участников.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitStats"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /tasks:
+    get:
+      operationId: listTasks
+      summary: Получить личные и доступные общие задачи
+      description: Личные задачи видны только владельцу; общие — текущим участникам активной пары.
+      parameters:
+        - $ref: "#/components/parameters/PlanningLimit"
+        - $ref: "#/components/parameters/PlanningOffset"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Задачи в пределах доступа пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createTask
+      summary: Создать личную или общую задачу
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTask"
+      responses:
+        "201":
+          description: Задача создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /tasks/{taskID}:
+    parameters:
+      - name: taskID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateTask
+      summary: Обновить задачу с optimistic locking
+      description: Version должен совпадать с текущей версией. Отправка null для due_at, reminder_at или color очищает это поле.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTask"
+      responses:
+        "200":
+          description: Задача обновлена; возвращается новая версия.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteTask
+      summary: Удалить задачу по ожидаемой версии
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Задача удалена; tombstone отправлен в sync feed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /onboarding/answers:
+    get:
+      operationId: listMyOnboardingAnswers
+      summary: Получить собственные ответы onboarding
+      description: Возвращает только ответы аутентифицированного пользователя.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Собственные ответы пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnboardingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: submitOnboardingAnswers
+      summary: Сохранить ответы onboarding
+      description: Принимает ответы только на вопросы опубликованной версии теста; повторная отправка обновляет собственный ответ пользователя на этот тест.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitOnboardingAnswers"
+      responses:
+        "200":
+          description: Ответ сохранён.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /sync/pull:
+    get:
+      operationId: pullSyncChanges
+      summary: Получить доступные изменения для офлайн-синхронизации
+      description: Возвращает изменения личных данных пользователя и данные текущей пары. После отвязки прежние общие изменения скрываются и передаётся только маркер отзыва доступа.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      responses:
+        "200":
+          description: Страница изменений и следующий персональный курсор.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /sync/push:
+    post:
+      operationId: pushSyncOperations
+      summary: Отправить офлайн-операции задач, событий и важных дат
+      description: Версионируемые upsert/delete для задач, календарных событий и важных дат. Для создания используйте base_version=0 и клиентский entity_id; для обновления/удаления передавайте текущую версию. operation_id обеспечивает дедупликацию на 30 дней. Каждая операция фиксируется независимо, поэтому пакет может завершиться частично; повторите пакет с теми же operation_id для уже обработанных элементов. Конфликт возвращается в результате конкретной операции. Для операций в couple scope требуется активная пара.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushRequest"
+      responses:
+        "200":
+          description: Отдельный результат для каждой операции; повтор операции возвращает исходный результат с replayed=true.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPushResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /sync/ws:
+    get:
+      operationId: subscribeToSyncHints
+      summary: Получать real-time уведомления о новых sync-изменениях
+      description: Требует Bearer JWT в заголовке Upgrade-запроса. WebSocket передаёт только best-effort type и персональный cursor; клиент должен вызывать /sync/pull при подключении и переподключении.
+      security:
+        - bearerAuth: []
+      responses:
+        "101":
+          description: WebSocket соединение установлено.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /couples/{coupleID}/invitations:
+    post:
+      operationId: createCoupleInvitation
+      summary: Создать одноразовое приглашение на 10 минут
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: coupleID
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Код и token показываются только при создании.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /couples/join:
+    post:
+      operationId: acceptCoupleInvitation
+      summary: Присоединиться по коду или token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [code]
+                  properties:
+                    code:
+                      type: string
+                      pattern: "^[0-9]{6}$"
+                - type: object
+                  required: [token]
+                  properties:
+                    token:
+                      type: string
+      responses:
+        "200":
+          description: Участник присоединился.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptInvitationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          $ref: "#/components/responses/Gone"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /couples/me:
+    get:
+      operationId: getMyCouple
+      summary: Получить текущую пару и участников
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Пара и её активные участники.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyCouple"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /couples/me/profile:
+    patch:
+      operationId: updateCoupleMemberProfile
+      summary: Обновить прозвище или персонажа участника
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberProfile"
+      responses:
+        "200":
+          description: Профиль пары обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /couples/me/detach/confirm:
+    post:
+      operationId: confirmCoupleDetach
+      summary: Подтвердить отвязку пары (обязательны оба участника)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Подтверждение сохранено; отвязка завершается после согласия обоих.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetachResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /media:
+    get:
+      operationId: listMedia
+      summary: Получить готовые медиафайлы в пределах доступа пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Метаданные медиа без ключей объектов и URL доступа.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MediaFile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /media/uploads:
+    post:
+      operationId: createMediaUpload
+      summary: Создать метаданные и короткоживущую форму для загрузки
+      description: Разрешены только JPEG и PNG размером 1–20 MiB. Сервер проверяет загруженные байты как изображение. Клиент отправляет multipart/form-data на upload_url с каждым form_fields значением и полем file. После успешной загрузки вызовите endpoint complete.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMediaUpload"
+      responses:
+        "201":
+          description: Создана ожидающая загрузки запись и выдана подписанная форма на 10 минут.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaUploadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /media/{mediaID}/complete:
+    parameters:
+      - name: mediaID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: completeMediaUpload
+      summary: Проверить загруженный объект и опубликовать его метаданные
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Объект проверен по размеру и Content-Type; повторный вызов безопасен.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaFile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /media/{mediaID}/download:
+    parameters:
+      - name: mediaID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: createMediaDownloadURL
+      summary: Выдать короткоживущий URL чтения доступного медиафайла
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: URL действителен 5 минут и выдаётся только участнику с правом чтения.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaDownloadURL"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /media/{mediaID}:
+    parameters:
+      - name: mediaID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteMedia
+      summary: Удалить метаданные и объект по ожидаемой версии
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: version
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Медиа скрыто, объект удалён, tombstone отправлен в sync feed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /moments:
+    get:
+      operationId: listMoments
+      summary: Получить личные и явно общие моменты с готовыми медиа
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Моменты в пределах доступа пользователя.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Moment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createMoment
+      summary: Создать личный или общий момент
+      description: Все прикреплённые media_ids должны быть готовы и иметь тот же scope. Объектные ключи и подписанные URL в sync payload не передаются.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMoment"
+      responses:
+        "201":
+          description: Момент создан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Moment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /memories:
+    get:
+      operationId: listMemoriesUnavailable
+      summary: API воспоминаний временно отключён
+      description: Публичный доступ к памяти заблокирован до проектирования E2E-протокола и безопасного обращения с существующими незашифрованными данными.
+      security:
+        - bearerAuth: []
+      responses:
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: Хранение воспоминаний недоступно до проектирования E2E.
+    post:
+      operationId: createMemoryUnavailable
+      summary: API воспоминаний временно отключён
+      description: Публичный доступ к памяти заблокирован до проектирования E2E-протокола и безопасного обращения с существующими незашифрованными данными.
+      security:
+        - bearerAuth: []
+      responses:
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: Хранение воспоминаний недоступно до проектирования E2E.
+  /health/live:
+    get:
+      operationId: healthLive
+      summary: Проверить, что процесс API запущен
+      servers:
+        - url: http://localhost:8080
+      responses:
+        "200":
+          description: Процесс отвечает.
+  /health/ready:
+    get:
+      operationId: healthReady
+      summary: Проверить доступность PostgreSQL и Redis
+      servers:
+        - url: http://localhost:8080
+      responses:
+        "200":
+          description: API готов обслуживать запросы.
+        "503":
+          description: Одна из зависимостей недоступна.
+components:
+  parameters:
+    PlanningLimit:
+      name: limit
+      in: query
+      required: false
+      description: Размер страницы (по умолчанию 200; при получении limit элементов можно запросить следующую страницу со смещением offset + limit).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 200
+    PlanningOffset:
+      name: offset
+      in: query
+      required: false
+      description: Число пропускаемых элементов, от 0 до 1000000.
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 1000000
+        default: 0
+    DateFrom:
+      name: from
+      in: query
+      required: false
+      description: Начало диапазона YYYY-MM-DD. По умолчанию последние 30 календарных дней.
+      schema:
+        type: string
+        format: date
+    DateTo:
+      name: to
+      in: query
+      required: false
+      description: Конец диапазона YYYY-MM-DD. По умолчанию текущая UTC-дата.
+      schema:
+        type: string
+        format: date
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    User:
+      type: object
+      required: [id, email, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+    AuthResponse:
+      type: object
+      required: [user, access_token, token_type, expires_in, refresh_token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        access_token:
+          type: string
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          description: Время жизни access token в секундах.
+        refresh_token:
+          type: string
+    Profile:
+      type: object
+      required: [user_id, email, locale, timezone, created_at, updated_at]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: [string, "null"]
+        avatar_key:
+          type: [string, "null"]
+        locale:
+          type: string
+          enum: [ru, en]
+        timezone:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpdateProfile:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        locale:
+          type: string
+          enum: [ru, en]
+        timezone:
+          type: string
+          maxLength: 64
+    OnboardingTest:
+      type: object
+      required: [slug, version, title, description, questions]
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_-]{0,79}$"
+        version:
+          type: integer
+          minimum: 1
+        title:
+          $ref: "#/components/schemas/TranslatedText"
+        description:
+          $ref: "#/components/schemas/TranslatedText"
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingQuestion"
+    OnboardingQuestion:
+      type: object
+      required: [key, prompt, type, position, required, options, settings]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_-]{0,79}$"
+        prompt:
+          $ref: "#/components/schemas/TranslatedText"
+        type:
+          type: string
+          enum: [single_choice, multiple_choice, text, scale, number, boolean]
+        position:
+          type: integer
+          minimum: 0
+        required:
+          type: boolean
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/OnboardingOption"
+        settings:
+          $ref: "#/components/schemas/OnboardingQuestionSettings"
+    OnboardingOption:
+      type: object
+      required: [value, label]
+      properties:
+        value:
+          type: string
+        label:
+          $ref: "#/components/schemas/TranslatedText"
+    TranslatedText:
+      type: object
+      additionalProperties:
+        type: string
+      description: Текст по языковому коду, например ru или en.
+    OnboardingQuestionSettings:
+      type: object
+      properties:
+        min:
+          type: number
+        max:
+          type: number
+        max_length:
+          type: integer
+          minimum: 1
+          maximum: 10000
+    SubmitOnboardingAnswers:
+      type: object
+      additionalProperties: false
+      required: [test_slug, version, answers]
+      properties:
+        test_slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_-]{0,79}$"
+        version:
+          type: integer
+          minimum: 1
+        answers:
+          type: object
+          minProperties: 1
+          maxProperties: 200
+          additionalProperties: true
+          description: Значения проверяются по опубликованным вопросам указанной версии.
+    OnboardingResponse:
+      type: object
+      required: [test_slug, test_version, answers, submitted_at]
+      properties:
+        test_slug:
+          type: string
+        test_version:
+          type: integer
+        answers:
+          type: object
+          additionalProperties: true
+        submitted_at:
+          type: string
+          format: date-time
+    SyncPage:
+      type: object
+      required: [changes, next_cursor, has_more]
+      properties:
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncChange"
+        next_cursor:
+          type: integer
+          format: int64
+          minimum: 0
+        has_more:
+          type: boolean
+    SyncPushRequest:
+      type: object
+      additionalProperties: false
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/TaskSyncOperation"
+              - $ref: "#/components/schemas/CalendarEventSyncOperation"
+              - $ref: "#/components/schemas/ImportantDateSyncOperation"
+              - $ref: "#/components/schemas/HabitSyncOperation"
+              - $ref: "#/components/schemas/HabitCompletionSyncOperation"
+              - $ref: "#/components/schemas/MoodEntrySyncOperation"
+              - $ref: "#/components/schemas/SleepEntrySyncOperation"
+    TaskSyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: task
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [upsert, delete]
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/TaskSyncPayload"
+    CalendarEventSyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: calendar_event
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [upsert, delete]
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/CalendarEventSyncPayload"
+    ImportantDateSyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: important_date
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [upsert, delete]
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/ImportantDateSyncPayload"
+    HabitSyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: habit
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [upsert, delete]
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/HabitSyncPayload"
+    HabitCompletionSyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version, payload]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: habit_completion
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          enum: [upsert, delete]
+        base_version:
+          type: integer
+          const: 0
+        payload:
+          $ref: "#/components/schemas/HabitCompletionSyncPayload"
+    MoodEntrySyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: mood_entry
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          const: upsert
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/MoodEntrySyncPayload"
+    SleepEntrySyncOperation:
+      type: object
+      additionalProperties: false
+      required: [operation_id, entity_type, entity_id, operation, base_version]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          const: sleep_entry
+        entity_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+          const: upsert
+        base_version:
+          type: integer
+          format: int64
+          minimum: 0
+        payload:
+          $ref: "#/components/schemas/SleepEntrySyncPayload"
+    TaskSyncPayload:
+      type: object
+      additionalProperties: false
+      required: [scope, title, description, status, due_at, reminder_at, color]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        status:
+          type: string
+          enum: [open, in_progress, done, cancelled]
+        due_at:
+          type: [string, "null"]
+          format: date-time
+        reminder_at:
+          type: [string, "null"]
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    ImportantDateSyncPayload:
+      type: object
+      additionalProperties: false
+      required: [scope, title, date, repeats_yearly, reminder_days]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        date:
+          type: string
+          format: date
+        repeats_yearly:
+          type: boolean
+        reminder_days:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 365
+    CalendarEventSyncPayload:
+      type: object
+      additionalProperties: false
+      required: [scope, title, description, event_type, starts_at, ends_at, color]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        event_type:
+          type: string
+          enum: [free, busy, date, meeting, task]
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    HabitSyncPayload:
+      type: object
+      additionalProperties: false
+      required: [scope, title, description, target_per_week]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        target_per_week:
+          type: integer
+          minimum: 1
+          maximum: 7
+    HabitCompletionSyncPayload:
+      type: object
+      additionalProperties: false
+      required: [habit_id, completed_on]
+      properties:
+        habit_id:
+          type: string
+          format: uuid
+        completed_on:
+          type: string
+          format: date
+    MoodEntrySyncPayload:
+      type: object
+      description: Note appears only in the owner's personal sync feed; shared feed entries contain mood and date only.
+      additionalProperties: false
+      required: [entry_date, mood, note, shared_with_couple]
+      properties:
+        entry_date:
+          type: string
+          format: date
+        mood:
+          type: string
+          minLength: 1
+          maxLength: 32
+        note:
+          type: string
+          maxLength: 2000
+        shared_with_couple:
+          type: boolean
+    SleepEntrySyncPayload:
+      type: object
+      additionalProperties: false
+      required: [entry_date, sleep_started_at, woke_at, quality, shared_with_couple]
+      properties:
+        entry_date:
+          type: string
+          format: date
+        sleep_started_at:
+          type: string
+          format: date-time
+        woke_at:
+          type: string
+          format: date-time
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 5
+        shared_with_couple:
+          type: boolean
+    SyncPushResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncOperationResult"
+    SyncOperationResult:
+      type: object
+      required: [operation_id, status, replayed]
+      properties:
+        operation_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [applied, conflict, blocked]
+        replayed:
+          type: boolean
+        error:
+          type: string
+        task:
+          $ref: "#/components/schemas/Task"
+        calendar_event:
+          $ref: "#/components/schemas/CalendarEvent"
+        important_date:
+          $ref: "#/components/schemas/ImportantDate"
+        habit:
+          $ref: "#/components/schemas/Habit"
+        habit_completion:
+          $ref: "#/components/schemas/Completion"
+        mood_entry:
+          $ref: "#/components/schemas/MoodEntry"
+        sleep_entry:
+          $ref: "#/components/schemas/SleepEntry"
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+    SyncChange:
+      type: object
+      required: [cursor, entity_type, entity_id, version, operation, payload, created_at]
+      properties:
+        cursor:
+          type: integer
+          format: int64
+          minimum: 1
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        operation:
+          type: string
+          enum: [upsert, delete]
+        payload:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    HomeSnapshot:
+      type: object
+      required: [profile, couple, pet]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        couple:
+          oneOf:
+            - $ref: "#/components/schemas/MyCouple"
+            - type: "null"
+        pet:
+          oneOf:
+            - $ref: "#/components/schemas/PetState"
+            - type: "null"
+    PetState:
+      type: object
+      required: [couple_id, appearance, version, updated_at]
+      properties:
+        couple_id:
+          type: string
+          format: uuid
+        appearance:
+          type: object
+          additionalProperties: true
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        updated_at:
+          type: string
+          format: date-time
+    Task:
+      type: object
+      required: [id, scope, title, description, status, due_at, reminder_at, color, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        status:
+          type: string
+          enum: [open, in_progress, done, cancelled]
+        due_at:
+          type: [string, "null"]
+          format: date-time
+        reminder_at:
+          type: [string, "null"]
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateTask:
+      type: object
+      additionalProperties: false
+      required: [scope, title]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        due_at:
+          type: [string, "null"]
+          format: date-time
+        reminder_at:
+          type: [string, "null"]
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    UpdateTask:
+      type: object
+      additionalProperties: false
+      required: [version]
+      minProperties: 2
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        status:
+          type: string
+          enum: [open, in_progress, done, cancelled]
+        due_at:
+          type: [string, "null"]
+          format: date-time
+        reminder_at:
+          type: [string, "null"]
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    CalendarEvent:
+      type: object
+      required: [id, scope, title, description, event_type, starts_at, ends_at, color, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        event_type:
+          type: string
+          enum: [free, busy, date, meeting, task]
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateCalendarEvent:
+      type: object
+      additionalProperties: false
+      required: [scope, title, event_type, starts_at, ends_at]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        event_type:
+          type: string
+          enum: [free, busy, date, meeting, task]
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    ImportantDate:
+      type: object
+      required: [id, scope, title, date, repeats_yearly, reminder_days, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          maxLength: 200
+        date:
+          type: string
+          format: date
+        repeats_yearly:
+          type: boolean
+        reminder_days:
+          type: array
+          maxItems: 10
+          items:
+            type: integer
+            minimum: 0
+            maximum: 365
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateImportantDate:
+      type: object
+      additionalProperties: false
+      required: [scope, title, date]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        date:
+          type: string
+          format: date
+        repeats_yearly:
+          type: boolean
+          default: false
+        reminder_days:
+          type: array
+          uniqueItems: true
+          maxItems: 10
+          items:
+            type: integer
+            minimum: 0
+            maximum: 365
+    UpdateCalendarEvent:
+      type: object
+      additionalProperties: false
+      required: [version, title, description, event_type, starts_at, ends_at, color]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        event_type:
+          type: string
+          enum: [free, busy, date, meeting, task]
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        color:
+          type: [string, "null"]
+          pattern: "^#[0-9A-Fa-f]{6}$"
+    UpdateImportantDate:
+      type: object
+      additionalProperties: false
+      required: [version, title, date, repeats_yearly, reminder_days]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        date:
+          type: string
+          format: date
+        repeats_yearly:
+          type: boolean
+        reminder_days:
+          type: array
+          uniqueItems: true
+          maxItems: 10
+          items:
+            type: integer
+            minimum: 0
+            maximum: 365
+    MediaFile:
+      type: object
+      required: [id, scope, content_type, size_bytes, status, version, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        content_type:
+          type: string
+          enum: [image/jpeg, image/png]
+        size_bytes:
+          type: integer
+          minimum: 0
+          maximum: 20971520
+        status:
+          type: string
+          enum: [pending, ready]
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+    CreateMediaUpload:
+      type: object
+      additionalProperties: false
+      required: [scope, content_type]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        content_type:
+          type: string
+          enum: [image/jpeg, image/png]
+    MediaUploadResponse:
+      type: object
+      required: [media, upload_url, form_fields, expires_at]
+      properties:
+        media:
+          $ref: "#/components/schemas/MediaFile"
+        upload_url:
+          type: string
+          format: uri
+        form_fields:
+          type: object
+          additionalProperties:
+            type: string
+        expires_at:
+          type: string
+          format: date-time
+    MediaDownloadURL:
+      type: object
+      required: [url, expires_at]
+      properties:
+        url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+    MediaAttachment:
+      type: object
+      required: [id, content_type, size_bytes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        content_type:
+          type: string
+          enum: [image/jpeg, image/png]
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 20971520
+    Moment:
+      type: object
+      required: [id, scope, title, caption, happened_at, media, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          maxLength: 200
+        caption:
+          type: string
+          maxLength: 5000
+        happened_at:
+          type: string
+          format: date-time
+        media:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/MediaAttachment"
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateMoment:
+      type: object
+      additionalProperties: false
+      required: [scope, title, happened_at]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        caption:
+          type: string
+          maxLength: 5000
+        happened_at:
+          type: string
+          format: date-time
+        media_ids:
+          type: array
+          uniqueItems: true
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+    MoodEntry:
+      type: object
+      required: [id, entry_date, mood, note, shared_with_couple, is_mine, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entry_date:
+          type: string
+          format: date
+        mood:
+          type: string
+          minLength: 1
+          maxLength: 32
+        note:
+          type: string
+          maxLength: 2000
+          description: Для чужой записи всегда пустая строка.
+        shared_with_couple:
+          type: boolean
+        is_mine:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SaveMoodEntry:
+      type: object
+      additionalProperties: false
+      required: [entry_date, mood]
+      properties:
+        entry_date:
+          type: string
+          format: date
+        mood:
+          type: string
+          minLength: 1
+          maxLength: 32
+        note:
+          type: string
+          maxLength: 2000
+        shared_with_couple:
+          type: boolean
+          default: false
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Обязателен при обновлении существующей записи.
+    SleepEntry:
+      type: object
+      required: [id, entry_date, sleep_started_at, woke_at, quality, shared_with_couple, is_mine, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entry_date:
+          type: string
+          format: date
+        sleep_started_at:
+          type: string
+          format: date-time
+        woke_at:
+          type: string
+          format: date-time
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 5
+        shared_with_couple:
+          type: boolean
+        is_mine:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    SaveSleepEntry:
+      type: object
+      additionalProperties: false
+      required: [entry_date, sleep_started_at, woke_at, quality]
+      properties:
+        entry_date:
+          type: string
+          format: date
+        sleep_started_at:
+          type: string
+          format: date-time
+        woke_at:
+          type: string
+          format: date-time
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 5
+        shared_with_couple:
+          type: boolean
+          default: false
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Обязателен при обновлении существующей записи.
+    Habit:
+      type: object
+      required: [id, scope, title, description, target_per_week, version, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        target_per_week:
+          type: integer
+          minimum: 1
+          maximum: 7
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateHabit:
+      type: object
+      additionalProperties: false
+      required: [scope, title]
+      properties:
+        scope:
+          type: string
+          enum: [personal, couple]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        target_per_week:
+          type: integer
+          default: 7
+          minimum: 1
+          maximum: 7
+    UpdateHabit:
+      type: object
+      additionalProperties: false
+      required: [version, title, description, target_per_week]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        target_per_week:
+          type: integer
+          minimum: 1
+          maximum: 7
+    CompleteHabit:
+      type: object
+      additionalProperties: false
+      required: [completed_on]
+      properties:
+        completed_on:
+          type: string
+          format: date
+    HabitCompletion:
+      type: object
+      required: [id, habit_id, user_id, completed_on, is_mine, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        habit_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        completed_on:
+          type: string
+          format: date
+        is_mine:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    HabitStats:
+      type: object
+      required: [habit_id, from, to, target_per_week, total_completions, members]
+      properties:
+        habit_id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        target_per_week:
+          type: integer
+          minimum: 1
+          maximum: 7
+        total_completions:
+          type: integer
+          minimum: 0
+        members:
+          type: array
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/HabitMemberStats"
+    HabitMemberStats:
+      type: object
+      required: [user_id, completion_count, successful_weeks, current_streak_weeks]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        completion_count:
+          type: integer
+          minimum: 0
+        successful_weeks:
+          type: integer
+          minimum: 0
+        current_streak_weeks:
+          type: integer
+          minimum: 0
+    CreateCoupleResponse:
+      type: object
+      required: [couple_id, status]
+      properties:
+        couple_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          const: pending
+    Invitation:
+      type: object
+      required: [invitation_id, code, token, expires_at]
+      properties:
+        invitation_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    AcceptInvitationResponse:
+      type: object
+      required: [couple_id, status, message]
+      properties:
+        couple_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          const: active
+        message:
+          type: string
+    CoupleMember:
+      type: object
+      required: [user_id, email, nickname, mascot_type, joined_at]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        nickname:
+          type: [string, "null"]
+        mascot_type:
+          type: string
+          enum: [kitten, wolf]
+        joined_at:
+          type: string
+          format: date-time
+    MyCouple:
+      type: object
+      required: [couple_id, status, created_at, members]
+      properties:
+        couple_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, active]
+        created_at:
+          type: string
+          format: date-time
+        activated_at:
+          type: [string, "null"]
+          format: date-time
+        members:
+          type: array
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/CoupleMember"
+    UpdateMemberProfile:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 50
+        mascot_type:
+          type: string
+          enum: [kitten, wolf]
+    DetachResponse:
+      type: object
+      required: [couple_id, status, confirmed, message]
+      properties:
+        couple_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, detached]
+        confirmed:
+          type: boolean
+        message:
+          type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+  responses:
+    BadRequest:
+      description: Некорректный запрос.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Требуется авторизация или учётные данные неверны.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Запрос конфликтует с текущим состоянием ресурса.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Ресурс не найден.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Gone:
+      description: Срок действия приглашения истёк.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Превышен лимит запросов.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Временная зависимость API недоступна.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalServerError:
+      description: Внутренняя ошибка сервера.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
