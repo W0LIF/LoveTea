@@ -1,0 +1,7 @@
+[deploy]
+  startCommand = "cd infra && docker compose up -d"
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 10
+
+[build]
+  builder = "docker"

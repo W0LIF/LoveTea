@@ -1,99 +1,94 @@
-# Развёртывание LoVeTea на Render + сборка APK
+# Развёртывание LoVeTea на Railway + сборка APK
 
-## Часть 1: Бэкенд на Render
+## Часть 1: Бэкенд на Railway
 
 ### Предварительные требования
-- Аккаунт на [render.com](https://render.com)
+- Аккаунт на [railway.app](https://railway.app)
 - GitHub репозиторий с кодом LoVeTea
 - S3-совместимое хранилище (AWS S3, Cloudflare R2, MinIO на внешнем сервере) для медиафайлов
 - SMTP сервер для email (опционально, для восстановления пароля)
 
-### Шаг 1: Подготовка репозитория
+### Шаг 1: Подключение репозитория к Railway
 
-Убедитесь, что в корне репозитория есть:
-- `render.yaml` — конфигурация Render (уже создано)
-- `backend/Dockerfile` — Docker-образ бэкенда (обновлён)
-- `backend/cmd/api/main.go` — поддерживает `WORKER_MODE=reminders` (обновлён)
+1. Войдите в [Railway Dashboard](https://railway.app/dashboard)
+2. Нажмите **"New Project"** → **"Deploy from GitHub repo"**
+3. Выберите репозиторий `W0LIF/LoveTea` (или загрузите код)
+4. Railway автоматически обнаружит `infra/docker-compose.yml`
 
-### Шаг 2: Подключение к Render
+### Шаг 2: Настройка сервисов
 
-1. Войдите в [Render Dashboard](https://dashboard.render.com/)
-2. Нажмите **"New +" → "Blueprint"**
-3. Подключите ваш GitHub репозиторий `E:\LoveTea` (или загрузите код в GitHub)
-4. Render автоматически обнаружит `render.yaml` и предложит создать:
-   - **lovetea-api** — Web Service (Docker)
-   - **lovetea-worker** — Background Worker (Docker) для reminders
-   - **lovetea-postgres** — Managed PostgreSQL
-   - **lovetea-redis** — Managed Redis
+Railway развернёт все сервисы из `docker-compose.yml`:
+- **postgres** — PostgreSQL + PostGIS
+- **redis** — Redis с паролем
+- **minio** — объектное хранилище
+- **mailpit** — тестовый SMTP
+- **api** — Go API (Docker-образ из `backend/Dockerfile`)
 
-### Шаг 3: Настройка переменных окружения
+### Шаг 3: Переменные окружения
 
-После создания сервисов Render предоставит connection strings для баз данных. Скопируйте их в переменные окружения:
+В Railway Dashboard перейдите в каждый сервис и задайте переменные:
 
-#### lovetea-postgres (Managed PostgreSQL)
-В Render Dashboard → lovetea-postgres → **Connections** скопируйте **External Database URL**. Установите как `DATABASE_URL` в сервисе `lovetea-api`.
-
-#### lovetea-redis (Managed Redis)
-В Render Dashboard → lovetea-redis → **Connections** скопируйте **External Redis URL**. Установите как `REDIS_URL` в сервисе `lovetea-api`.
-
-#### lovetea-api (Web Service)
+#### Сервис `api`
 
 | Переменная | Значение |
 |---|---|
-| `DATABASE_URL` | External Database URL из lovetea-postgres |
-| `REDIS_URL` | External Redis URL из lovetea-redis |
-| `HTTP_PORT` | `8080` |
-| `POSTGRES_SSLMODE` | `require` |
-| `JWT_SECRET` | любая строка минимум 32 символа (или `generateValue: true` в render.yaml) |
-| `MINIO_ENDPOINT` | Ваш S3 endpoint (например `s3.amazonaws.com` или `xxx.r2.cloudflarestorage.com`) |
-| `MINIO_PUBLIC_ENDPOINT` | Публичный URL для доступа к файлам |
-| `MINIO_ACCESS_KEY` | Ключ доступа к S3 |
-| `MINIO_SECRET_KEY` | Секретный ключ к S3 |
+| `JWT_SECRET` | любая строка минимум 32 символа |
+| `MINIO_ENDPOINT` | `minio:9000` (внутреннее имя сервиса) |
+| `MINIO_PUBLIC_ENDPOINT` | публичный URL MinIO (или `minio:9000`) |
+| `MINIO_ACCESS_KEY` | ключ доступа к MinIO |
+| `MINIO_SECRET_KEY` | секретный ключ к MinIO |
 | `MINIO_BUCKET` | `lovetea-media` |
-| `MINIO_USE_TLS` | `true` |
-| `MAIL_HOST` | SMTP хост (или пусто, если не нужен email) |
-| `MAIL_PORT` | `587` |
+| `MINIO_USE_TLS` | `false` (внутри Railway нет TLS между сервисами) |
+| `MAIL_HOST` | `mailpit` (или внешний SMTP) |
+| `MAIL_PORT` | `1025` (или `587` для внешнего SMTP) |
 | `MAIL_USER` | SMTP логин |
 | `MAIL_PASS` | SMTP пароль |
 | `MAIL_FROM` | `noreply@yourdomain.com` |
+| `POSTGRES_SSLMODE` | `disable` |
 
-#### lovetea-worker (Background Worker)
+#### Сервис `postgres`
 
 | Переменная | Значение |
 |---|---|
-| `WORKER_MODE` | `reminders` |
-| `JWT_SECRET` | та же строка, что и в lovetea-api |
-| `DATABASE_URL` | External Database URL из lovetea-postgres |
-| `REDIS_URL` | External Redis URL из lovetea-redis |
+| `POSTGRES_DB` | `lovetea` |
+| `POSTGRES_USER` | `lovetea` |
+| `POSTGRES_PASSWORD` | любой пароль |
 
+#### Сервис `redis`
 
-### Шаг 4: Первичный деплой
+| Переменная | Значение |
+|---|---|
+| `REDIS_PASSWORD` | любой пароль |
 
-1. Render соберёт Docker-образы и запустит сервисы
-2. При первом старте API автоматически применит миграции базы данных
-3. Проверьте health endpoint:
-   ```
-   https://lovetea-api.onrender.com/health/live
-   https://lovetea-api.onrender.com/health/ready
-   ```
+#### Сервис `minio`
 
-### Шаг 5: Получить URL API
+| Переменная | Значение |
+|---|---|
+| `MINIO_ROOT_USER` | `minioadmin` (или свой) |
+| `MINIO_ROOT_PASSWORD` | любой пароль |
 
-После деплоя URL API будет вида:
-```
-https://lovetea-api.onrender.com
-```
+### Шаг 4: Получение URL API
+
+После деплоя Railway присвоит каждому сервису публичный домен:
+- API: `https://lovetea-api-xxx.up.railway.app`
 
 Этот URL понадобится для сборки мобильного APK.
+
+### Шаг 5: Проверка health endpoint
+
+```bash
+curl https://lovetea-api-xxx.up.railway.app/health/live
+curl https://lovetea-api-xxx.up.railway.app/health/ready
+```
 
 ---
 
 ## Часть 2: Сборка APK мобильного приложения
 
 ### Требования
-- Flutter SDK установлен (уже есть в проекте)
-- Android SDK установлен (уже есть в проекте)
-- URL вашего бэкенда на Render
+- Flutter SDK установлен
+- Android SDK установлен
+- URL вашего бэкенда на Railway
 
 ### Шаг 1: Сборка APK
 
@@ -104,7 +99,7 @@ https://lovetea-api.onrender.com
 flutter pub get
 
 # Собрать release APK с указанием URL бэкенда
-flutter build apk --release --dart-define=API_BASE_URL=https://lovetea-api.onrender.com
+flutter build apk --release --dart-define=API_BASE_URL=https://lovetea-api-xxx.up.railway.app
 ```
 
 APK будет создан по пути:
@@ -119,7 +114,7 @@ mobile/build/app/outputs/flutter-apk/app-release.apk
 3. Установите APK
 4. При первом запуске укажите URL бэкенда (если не задан через `--dart-define`)
 
-### Альтернатива: сборка для тестирования на эмуляторе
+### Альтернатива: сборка для локального тестирования
 
 ```powershell
 flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:8080
@@ -132,11 +127,11 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ### Бэкенд
 ```bash
 # Health check
-curl https://lovetea-api.onrender.com/health/live
-curl https://lovetea-api.onrender.com/health/ready
+curl https://lovetea-api-xxx.up.railway.app/health/live
+curl https://lovetea-api-xxx.up.railway.app/health/ready
 
 # Регистрация
-curl -X POST https://lovetea-api.onrender.com/api/v1/auth/register \
+curl -X POST https://lovetea-api-xxx.up.railway.app/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"test123"}'
 ```
@@ -149,13 +144,13 @@ curl -X POST https://lovetea-api.onrender.com/api/v1/auth/register \
 
 ---
 
-## Часть 4: Резервное копирование (Render)
+## Часть 4: Резервное копирование
 
-Render Managed PostgreSQL автоматически создаёт бэкапы. Для настройки:
+Railway создаёт автоматические снимки volumes для PostgreSQL и MinIO. Для настройки:
 
-1. В Render Dashboard перейдите в **lovetea-postgres**
+1. В Railway Dashboard перейдите в сервис `postgres`
 2. Вкладка **Backups** — настройте расписание
-3. Для файлового хранилища (S3/R2) настройте бэкап в консоли провайдера хранилища
+3. Для файлового хранилища (MinIO/S3) настройте бэкап в консоли провайдера
 
 Скрипты локального бэкапа находятся в `infra/scripts/`:
 - `backup.sh` — создание бэкапа
@@ -168,8 +163,9 @@ Render Managed PostgreSQL автоматически создаёт бэкапы
 
 | Проблема | Решение |
 |---|---|
-| API не стартует | Проверьте логи в Render Dashboard → lovetea-api → Logs |
-| Миграции не применяются | Убедитесь, что `POSTGRES_SSLMODE=require` для managed Postgres |
-| Файлы не загружаются | Проверьте `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` |
+| API не стартует | Проверьте логи в Railway Dashboard → сервис api → Logs |
+| Миграции не применяются | Убедитесь, что `POSTGRES_SSLMODE=disable` внутри Railway |
+| Файлы не загружаются | Проверьте `MINIO_ENDPOINT=minio:9000` и ключи доступа |
 | Push не работает | Настройте `FCM_ACCESS_TOKEN` и `APNS_TOPIC` в переменных окружения |
 | APK не подключается к API | Проверьте `API_BASE_URL` при сборке и что устройство имеет доступ к интернету |
+| Сервисы не видят друг друга | Используйте внутренние имена сервисов (postgres, redis, minio, mailpit) |
