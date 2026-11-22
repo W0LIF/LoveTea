@@ -19,9 +19,11 @@ type Config struct {
 	PostgresUser     string
 	PostgresPassword string
 	PostgresSSLMode  string
+	databaseURL      string
 
 	RedisAddr     string
 	RedisPassword string
+	redisURL      string
 
 	JWTSecret string
 
@@ -69,20 +71,43 @@ func Load() (*Config, error) {
 		MinIOBucket:         getEnv("MINIO_BUCKET", "lovetea-media"),
 	}
 
+	// DATABASE_URL overrides individual Postgres fields (Render managed DB).
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		cfg.PostgresHost = ""
+		cfg.PostgresPort = ""
+		cfg.PostgresDB = ""
+		cfg.PostgresUser = ""
+		cfg.PostgresPassword = ""
+		cfg.databaseURL = databaseURL
+	}
+
+	// REDIS_URL overrides individual Redis fields.
+	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		cfg.RedisAddr = ""
+		cfg.RedisPassword = ""
+		cfg.redisURL = redisURL
+	}
+
 	if cfg.PostgresDB == "" || cfg.PostgresUser == "" || cfg.PostgresPassword == "" {
-		return nil, fmt.Errorf("POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD must be set")
+		if cfg.databaseURL == "" {
+			return nil, fmt.Errorf("POSTGRES_DB, POSTGRES_USER and POSTGRES_PASSWORD must be set, or DATABASE_URL")
+		}
 	}
 
 	if port, err := strconv.Atoi(cfg.HTTPPort); err != nil || port < 1 || port > 65535 {
 		return nil, fmt.Errorf("HTTP_PORT must be a valid TCP port")
 	}
 
-	if port, err := strconv.Atoi(cfg.PostgresPort); err != nil || port < 1 || port > 65535 {
-		return nil, fmt.Errorf("POSTGRES_PORT must be a valid TCP port")
+	if cfg.databaseURL == "" {
+		if port, err := strconv.Atoi(cfg.PostgresPort); err != nil || port < 1 || port > 65535 {
+			return nil, fmt.Errorf("POSTGRES_PORT must be a valid TCP port")
+		}
 	}
 
-	if _, _, err := net.SplitHostPort(cfg.RedisAddr); err != nil {
-		return nil, fmt.Errorf("invalid REDIS_ADDR: %w", err)
+	if cfg.redisURL == "" {
+		if _, _, err := net.SplitHostPort(cfg.RedisAddr); err != nil {
+			return nil, fmt.Errorf("invalid REDIS_ADDR: %w", err)
+		}
 	}
 
 	if len(cfg.JWTSecret) < 32 {
@@ -135,6 +160,9 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) PostgresDSN() string {
+	if c.databaseURL != "" {
+		return c.databaseURL
+	}
 	u := url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(c.PostgresUser, c.PostgresPassword),
@@ -148,6 +176,16 @@ func (c *Config) PostgresDSN() string {
 	u.RawQuery = query.Encode()
 
 	return u.String()
+}
+
+func (c *Config) RedisDSN() string {
+	if c.redisURL != "" {
+		return c.redisURL
+	}
+	if c.RedisPassword != "" {
+		return "redis://:" + c.RedisPassword + "@" + c.RedisAddr
+	}
+	return "redis://" + c.RedisAddr
 }
 
 func getEnv(key, fallback string) string {

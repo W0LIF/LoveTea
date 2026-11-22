@@ -28,12 +28,23 @@
 
 ### Шаг 3: Настройка переменных окружения
 
-В Render Dashboard перейдите в каждый сервис и задайте переменные:
+После создания сервисов Render предоставит connection strings для баз данных. Скопируйте их в переменные окружения:
+
+#### lovetea-postgres (Managed PostgreSQL)
+В Render Dashboard → lovetea-postgres → **Connections** скопируйте **External Database URL**. Установите как `DATABASE_URL` в сервисе `lovetea-api`.
+
+#### lovetea-redis (Managed Redis)
+В Render Dashboard → lovetea-redis → **Connections** скопируйте **External Redis URL**. Установите как `REDIS_URL` в сервисе `lovetea-api`.
 
 #### lovetea-api (Web Service)
 
 | Переменная | Значение |
 |---|---|
+| `DATABASE_URL` | External Database URL из lovetea-postgres |
+| `REDIS_URL` | External Redis URL из lovetea-redis |
+| `HTTP_PORT` | `8080` |
+| `POSTGRES_SSLMODE` | `require` |
+| `JWT_SECRET` | любая строка минимум 32 символа (или `generateValue: true` в render.yaml) |
 | `MINIO_ENDPOINT` | Ваш S3 endpoint (например `s3.amazonaws.com` или `xxx.r2.cloudflarestorage.com`) |
 | `MINIO_PUBLIC_ENDPOINT` | Публичный URL для доступа к файлам |
 | `MINIO_ACCESS_KEY` | Ключ доступа к S3 |
@@ -46,11 +57,15 @@
 | `MAIL_PASS` | SMTP пароль |
 | `MAIL_FROM` | `noreply@yourdomain.com` |
 
-`POSTGRES_*`, `REDIS_*`, `JWT_SECRET` заполняются автоматически Render из managed сервисов.
-
 #### lovetea-worker (Background Worker)
 
-Те же переменные, что и для API, кроме `MINIO_*` (можно не задавать, если не нужна загрузка файлов из воркера).
+| Переменная | Значение |
+|---|---|
+| `WORKER_MODE` | `reminders` |
+| `JWT_SECRET` | та же строка, что и в lovetea-api |
+| `DATABASE_URL` | External Database URL из lovetea-postgres |
+| `REDIS_URL` | External Redis URL из lovetea-redis |
+
 
 ### Шаг 4: Первичный деплой
 

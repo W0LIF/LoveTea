@@ -57,8 +57,7 @@ func run() error {
 
 	rdb, err := redisClient.NewRedis(
 		startupCtx,
-		cfg.RedisAddr,
-		cfg.RedisPassword,
+		cfg.RedisDSN(),
 	)
 	if err != nil {
 		return err
